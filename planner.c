@@ -12,9 +12,9 @@
 #define TITLE_SIZE 32
 
 struct simple_date {
-	unsigned short year;
 	unsigned char month;
 	unsigned char day; 
+	unsigned short year;
 };
 
 struct task {
@@ -42,7 +42,7 @@ struct task* task_create(char title[], char *description, struct simple_date due
 	}
 
 	// COPY OVER THE TITLE
-	unsigned char title_length = strlen(title);
+	unsigned char title_length = (unsigned char) strlen(title);
 	if(title_length < TITLE_SIZE)                  // IF the parameter is appropriate length, just copy
 		strcpy(new_task->title, title);        // using strcpy function
 	else                                           // ELSE copy character by character up to the 32nd character 
@@ -52,9 +52,10 @@ struct task* task_create(char title[], char *description, struct simple_date due
 
 		new_task->title[TITLE_SIZE - 1] = '\0';
 	}
-
+	
 	// COPY OVER THE DESCRIPTION	
-	new_task->description_length = strlen(description);
+	new_task->description_length = (unsigned short) strlen(description);
+	new_task->description = malloc(sizeof(char) * new_task->description_length);
 	strcpy(new_task->description, description);
 	
 	// SET PRIORITY 
@@ -113,5 +114,20 @@ bool write_tasks(char *file_name, struct task **tasks, unsigned short tasks_leng
 
 int main(void)
 {
+	// test code
+	//
+	struct task **tasks = malloc(sizeof(struct task*) * 10);
+	char titles[4][32] = {"Work on code", "Make tofu", "Work on ENGR589A", "Work on ENGR510"};
+	char descriptions[4][50] = {"ABC analysis tool", "with beyond beef", "presentation of time management method", "read materials"};
+	struct simple_date due_dates[4] = { {5, 6, 2024}, {5, 6, 2024}, {5, 8, 2024}, {5, 12, 2024} };
+	unsigned char difficulties[4] = {3, 1, 2, 2};
+
+	for(int i = 0; i < 4; i++)
+	{
+		tasks[i] = malloc(sizeof(struct task));
+		tasks[i] = task_create(titles[i], descriptions[i], due_dates[i], difficulties[i]);
+	}
+	
+	write_tasks("tasks.bin", tasks, 4, 10);
 	return 0;
 }
