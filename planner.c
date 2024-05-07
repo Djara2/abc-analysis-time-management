@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define TITLE_SIZE 32
+
 struct simple_date {
 	unsigned short year;
 	unsigned char month;
@@ -23,14 +25,14 @@ struct task {
 	struct simple_date creation_date; 
 	struct simple_date due_date;
 
-	char title[32];  // it is safe to assume that this should not be too long --- please be concise.
+	char title[TITLE_SIZE];  // it is safe to assume that this should not be too long --- please be concise.
 
 	unsigned short description_length;    // There is no way to determine an appropriate length by using a fixed buffer. Theoretically,
                                               // some space may be saved using dynamic allocation. If only 60 characters are used for a 
 	char *description;                    // description, then 64 bytes of memory are used, versus fixed 256 bytes with a static array.	
 };
 
-struct task* task_create(char title[], char *description, struct tm creation_time
+struct task* task_create(char title[], char *description, struct simple_date due_date, unsigned char difficulty)
 {
 	struct task *new_task = malloc(sizeof(struct task));
 	if(new_task == NULL)
@@ -41,14 +43,14 @@ struct task* task_create(char title[], char *description, struct tm creation_tim
 
 	// COPY OVER THE TITLE
 	unsigned char title_length = strlen(title);
-	if(title_length < 32)                          // IF the parameter is appropriate length, just copy
+	if(title_length < TITLE_SIZE)                  // IF the parameter is appropriate length, just copy
 		strcpy(new_task->title, title);        // using strcpy function
 	else                                           // ELSE copy character by character up to the 32nd character 
 	{                                              // and insert a null terminator at the end
-		for(int i = 0; i < 31; i++)
+		for(int i = 0; i < TITLE_SIZE - 1; i++)
 			new_task->title[i] = title[i];
 
-		new_task->title[31] = '\0';
+		new_task->title[TITLE_SIZE - 1] = '\0';
 	}
 
 	// COPY OVER THE DESCRIPTION	
@@ -61,16 +63,48 @@ struct task* task_create(char title[], char *description, struct tm creation_tim
 	// SET DATE TIME INFORMATION
 	time_t t = time(NULL);
 	struct tm current_time = *localtime(&t);
-	new_task->creation_date = current_time;
+	new_task->creation_date.month = current_time.tm_mon;
+	new_task->creation_date.day = current_time.tm_mday;
+	new_task->creation_date.year = current_time.tm_year + 1900;
+	
+	new_task->due_date.month = due_date.month;
+	new_task->due_date.day = due_date.day;
+	new_task->due_date.year = due_date.year;
+
+	// SET DIFFICULTY
+	new_task->difficulty = difficulty;
+
+	return new_task;
 }
 
 bool write_tasks(char *file_name, struct task **tasks, unsigned short tasks_length, unsigned short tasks_capacity)
 {
-	FILE *fh = fopen(file_name, "w");
-	for(int tasks_index = 0; tasks_index < tasks_length)
+	// ATTEMPT TO OPEN FILE FOR WRITING IN BINARY MODE
+	FILE *fh = fopen(file_name, "wb");
+	if(fh == NULL)
 	{
-		fwrite(
+		fprintf(stderr, "Failed to open file \"%s\" for reading.\n", file_name);
+		return false;
 	}
+
+	// WRITE EACH INDIVIDUAL TASK
+	for(int tasks_index = 0; tasks_index < tasks_length; tasks_index++)
+	{
+		struct task *current = tasks[tasks_index];
+
+		fwrite(&current->priority, 1, 1, fh);
+		fwrite(&current->difficulty, 1, 1, fh);
+
+		fwrite(&current->creation_date, sizeof(struct simple_date), 1, fh);
+		fwrite(&current->due_date,      sizeof(struct simple_date), 1, fh);
+
+		fwrite(&current->title, TITLE_SIZE, 1, fh);
+
+		fwrite(&current->description_length, sizeof(unsigned short), 1, fh);
+		fwrite(current->description, 1, current->description_length, fh);
+	}
+
+	fclose(fh);
 
 	return true;
 }
